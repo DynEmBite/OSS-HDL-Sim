@@ -14,19 +14,19 @@ jobs:
       - name: Checkout GitHub repo
         uses: actions/checkout@v4
 
-      - name: Install MSYS2 + Dependencies (inkl. SVN!)
+      - name: Install MSYS2 + Dependencies
         uses: msys2/setup-msys2@v2
         with:
           update: true
           install: >
             base-devel
+            subversion
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-gtk3
             mingw-w64-x86_64-meson
             mingw-w64-x86_64-ninja
             mingw-w64-x86_64-libgnurx
             mingw-w64-x86_64-zlib
-            mingw-w64-x86_64-subversion
 
       - name: Checkout GTKWave SVN (Revision r1725)
         shell: msys2 {0}
@@ -48,24 +48,19 @@ jobs:
           mkdir -p bundle/bin
           mkdir -p bundle/share
 
-          # Copy main executable
           cp /msys64/mingw64/bin/gtkwave.exe bundle/
 
-          # Copy required DLLs
           ldd /msys64/mingw64/bin/gtkwave.exe | awk '/mingw64/ {print $3}' | while read dll; do
             cp "$dll" bundle/bin/
           done
 
-          # Copy minimal GTK runtime
           cp -r /msys64/mingw64/share/glib-2.0 bundle/share/
           cp -r /msys64/mingw64/share/icons bundle/share/
           cp -r /msys64/mingw64/share/gtkwave bundle/share/ || true
 
-          # Only keep Adwaita theme
           mkdir -p bundle/share/themes
           cp -r /msys64/mingw64/share/themes/Adwaita bundle/share/themes/
 
-          # Add launcher batch file
           echo "@echo off" > bundle/run-gtkwave.bat
           echo "set PATH=%~dp0bin;%PATH%" >> bundle/run-gtkwave.bat
           echo "start gtkwave.exe" >> bundle/run-gtkwave.bat
