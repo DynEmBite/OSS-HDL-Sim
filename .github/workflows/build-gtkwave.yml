@@ -20,7 +20,21 @@ jobs:
       - name: Checkout GTKWave SVN (Revision r1725)
         shell: powershell
         run: |
-          & "C:\Program Files\Subversion\bin\svn.exe" checkout -r 1725 https://svn.code.sf.net/p/gtkwave/code/ gtkwave-code
+          # Try both possible Chocolatey SVN locations
+          $svn1 = "C:\ProgramData\chocolatey\bin\svn.exe"
+          $svn2 = "C:\ProgramData\chocolatey\lib\svn\tools\svn\bin\svn.exe"
+
+          if (Test-Path $svn1) {
+            $svn = $svn1
+          } elseif (Test-Path $svn2) {
+            $svn = $svn2
+          } else {
+            Write-Error "SVN executable not found!"
+            exit 1
+          }
+
+          & $svn --version
+          & $svn checkout -r 1725 https://svn.code.sf.net/p/gtkwave/code/ gtkwave-code
 
       - name: Install MSYS2 + Dependencies
         uses: msys2/setup-msys2@v2
