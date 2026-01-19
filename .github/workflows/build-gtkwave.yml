@@ -1,0 +1,98 @@
+name: Build GTKWave Win64 (GTK3, r1725, optimized bundle + release)
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v3.3.126"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout GitHub repo
+        uses: actions/checkout@v4
+
+      - name: Install SVN
+        run: choco install svn -y
+
+      - name: Checkout GTKWave SVN (Revision r1725)
+        shell: bash
+        run: |
+          svn checkout -r 1725 https://svn.code.sf.net/p/gtkwave/code/ gtkwave-code
+
+      - name: Install MSYS2 + Dependencies
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >
+            base-devel
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-gtk3
+            mingw-w64-x86_64-meson
+            mingw-w64-x86_64-ninja
+            mingw-w64-x86_64-libgnurx
+            mingw-w64-x86_64-zlib
+
+      - name: Build GTKWave (Meson + Ninja)
+        shell: msys2 {0}
+        run: |
+          cd gtkwave-code
+          meson setup builddir --prefix=/mingw64
+          meson compile -C builddir
+          meson install -C builddir
+
+      - name: Create optimized bundle
+        shell: bash
+        run: |
+          mkdir -p bundle/bin
+          mkdir -p bundle/share
+
+          # Copy main executable
+          cp /msys64/mingw64/bin/gtkwave.exe bundle/
+
+          # Copy required DLLs
+          ldd /msys64/mingw64/bin/gtkwave.exe | awk '/mingw64/ {print $3}' | while read dll; do
+            cp "$dll" bundle/bin/
+          done
+
+          # Copy minimal GTK runtime
+          cp -r /msys64/mingw64/share/glib-2.0 bundle/share/
+          cp -r /msys64/mingw64/share/icons bundle/share/
+          cp -r /msys64/mingw64/share/gtkwave bundle/share/ || true
+
+          # Only keep Adwaita theme
+          mkdir -p bundle/share/themes
+          cp -r /msys64/mingw64/share/themes/Adwaita bundle/share/themes/
+
+          # Add launcher batch file
+          echo "@echo off" > bundle/run-gtkwave.bat
+          echo "set PATH=%~dp0bin;%PATH%" >> bundle/run-gtkwave.bat
+          echo "start gtkwave.exe" >> bundle/run-gtkwave.bat
+
+      - name: Pack bundle
+        shell: bash
+        run: |
+          7z a gtkwave-3.3.126-bin-win64.zip ./bundle/*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gtkwave-3.3.126-bin-win64
+          path: gtkwave-3.3.126-bin-win64.zip
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: gtkwave-3.3.126-bin-win64.zip
+          name: "GTKWave 3.3.126 (Windows 64-bit)"
+          body: |
+            Automatisch generiertes Windows‑Bundle für GTKWave 3.3.126.
+            Enthält:
+            - gtkwave.exe
+            - alle benötigten DLLs
+            - GTK3 Runtime
+            - portable Ordnerstruktur
+            - Startskript
