@@ -1,4 +1,4 @@
-name: Build GTKWave Win64 (GTK3, r1725, optimized bundle + release)
+name: Build GTKWave Win64 (MSYS2, r1725, bundle + release)
 
 on:
   workflow_dispatch:
@@ -21,9 +21,6 @@ jobs:
           install: >
             base-devel
             subversion
-            autoconf
-            automake
-            libtool
             mingw-w64-x86_64-toolchain
             mingw-w64-x86_64-gtk3
             mingw-w64-x86_64-zlib
@@ -32,36 +29,40 @@ jobs:
       - name: Checkout GTKWave SVN (Revision r1725)
         shell: msys2 {0}
         run: |
+          svn --version
           svn checkout -r 1725 https://svn.code.sf.net/p/gtkwave/code/ gtkwave-code
 
-      - name: Build GTKWave (Autotools)
+      - name: Build GTKWave (Makefile)
         shell: msys2 {0}
         run: |
           cd gtkwave-code
-          ./autogen.sh
-          ./configure --prefix=/mingw64
           make -j$(nproc)
           make install
 
-      - name: Create optimized portable bundle
+      - name: Create portable bundle
         shell: bash
         run: |
           mkdir -p bundle/bin
           mkdir -p bundle/share
 
+          # Copy main executable
           cp /msys64/mingw64/bin/gtkwave.exe bundle/
 
+          # Copy required DLLs
           ldd /msys64/mingw64/bin/gtkwave.exe | awk '/mingw64/ {print $3}' | while read dll; do
             cp "$dll" bundle/bin/
           done
 
+          # Copy GTK runtime
           cp -r /msys64/mingw64/share/glib-2.0 bundle/share/
           cp -r /msys64/mingw64/share/icons bundle/share/
           cp -r /msys64/mingw64/share/gtkwave bundle/share/ || true
 
+          # Only keep Adwaita theme
           mkdir -p bundle/share/themes
           cp -r /msys64/mingw64/share/themes/Adwaita bundle/share/themes/
 
+          # Add launcher batch file
           echo "@echo off" > bundle/run-gtkwave.bat
           echo "set PATH=%~dp0bin;%PATH%" >> bundle/run-gtkwave.bat
           echo "start gtkwave.exe" >> bundle/run-gtkwave.bat
