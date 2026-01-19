@@ -17,17 +17,10 @@ jobs:
       - name: Install SVN
         run: choco install svn -y
 
-      - name: Ensure SVN is available in PATH
-        shell: bash
-        run: |
-          export PATH="/c/Program Files/Subversion/bin:$PATH"
-          svn --version
-
       - name: Checkout GTKWave SVN (Revision r1725)
-        shell: bash
+        shell: powershell
         run: |
-          export PATH="/c/Program Files/Subversion/bin:$PATH"
-          svn checkout -r 1725 https://svn.code.sf.net/p/gtkwave/code/ gtkwave-code
+          & "C:\Program Files\Subversion\bin\svn.exe" checkout -r 1725 https://svn.code.sf.net/p/gtkwave/code/ gtkwave-code
 
       - name: Install MSYS2 + Dependencies
         uses: msys2/setup-msys2@v2
